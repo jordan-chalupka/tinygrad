@@ -321,14 +321,8 @@ class View:
     # after the asserts, it's okay to check contiguous
     if self.contiguous: return View.create(new_shape)
 
-    # if it's not contiguous and new shape is symbolic, check if it's directly replaceable
-    if self_all_int and not all_int(new_shape):
-      if len(self.shape) != len(new_shape): raise ValueError(f"cannot symbolic reshape non-contiguous {self} -> {new_shape}")
-      for si, so in zip(self.shape, new_shape):
-        if not isinstance(so, int): so = sym_infer(so, dict([v.unbind() for v in so.vars()]))
-        if si != so: raise ValueError(f"cannot symbolic reshape non-contiguous {self} -> {new_shape}")
-      # all dimensions matched, return the new view directly
-      return View(new_shape, self.strides, self.offset, self.mask, self.contiguous)
+    if not all_int(new_shape):
+      raise ValueError(f"cannot reshape to symbolic shape {self} -> {new_shape}")
 
     r_strides, r_new_shape = [], reversed(new_shape)
     for merged_size, new_stride, real_size in reversed(merge_dims(self.shape, self.strides, self.mask)):
