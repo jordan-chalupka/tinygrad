@@ -3,7 +3,7 @@ import functools, operator, itertools
 from dataclasses import dataclass
 from typing import cast, Sequence
 from tinygrad.dtype import dtypes
-from tinygrad.uop.ops import resolve, UOp, Variable, sint, sym_infer, smax, smin, sint_to_uop, Ops, ssimplify
+from tinygrad.uop.ops import resolve, UOp, Variable, sint, smax, smin, sint_to_uop, Ops, ssimplify
 from tinygrad.helpers import prod, all_int, argsort, flatten, ceildiv
 
 # returns the axes to create new_shape if new_shape can be created by combining axis from old_shape
@@ -311,7 +311,7 @@ class View:
 
     if not all(x >= 0 for x in new_shape): raise ValueError(f"shape can't contain negative numbers {new_shape}")
     # check for the same size
-    if (self_all_int := all_int(self.shape)):
+    if (all_int(self.shape)):
       assert all(isinstance(s, (int, UOp)) for s in new_shape), f"{self.shape=} -> {new_shape=} contains non (int, Variable) dim"
       if resolve(prod(self.shape) != prod(new_shape), False): raise ValueError(f"size mismatched, can't reshape {self.shape=} -> {new_shape=}")
 
