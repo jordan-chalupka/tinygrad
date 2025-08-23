@@ -19,7 +19,7 @@ from tinygrad.schedule.rangeify import get_rangeify_map
 from tinygrad.schedule.kernelize import get_kernelize_map
 
 if TYPE_CHECKING:
-    import numpy as np
+  import numpy as np
 
 # *** all in scope Tensors are here. this gets relevant UOps ***
 
