@@ -932,9 +932,9 @@ class RewriteNotReady(Exception): pass
 class RewriteContext:
   def __init__(self, pm, bpm, ctx=None):
     self.pm: PatternMatcher|None = pm
-    self.pm_cache: dict[UOp, UOp|None] = {}
+    self.pm_cache: dict[UOp, UOp|bool|tuple|str|None] = {}
     self.bpm: PatternMatcher|None = bpm
-    self.bpm_cache: dict[UOp, UOp|None] = {}
+    self.bpm_cache: dict[UOp, UOp|bool|tuple|str|None] = {}
     self.ctx = ctx
     self.replace: dict[UOp, UOp] = {}
 
