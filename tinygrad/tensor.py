@@ -2,6 +2,7 @@
 from __future__ import annotations
 import time, math, itertools, functools, struct, sys, inspect, pathlib, string, hashlib, weakref
 from contextlib import ContextDecorator
+from typing import TYPE_CHECKING
 from typing import Callable, ClassVar, Sequence, cast, get_args, Literal, SupportsIndex, ParamSpec, TypeVar, Generic
 from tinygrad.dtype import DType, DTypeLike, dtypes, ImageDType, ConstType, least_upper_float, least_upper_dtype, sum_acc_dtype, to_dtype, truncate
 from tinygrad.dtype import _from_np_dtype, _to_np_dtype
@@ -16,6 +17,9 @@ from tinygrad.engine.memory import memory_planner
 from tinygrad.engine.schedule import ScheduleItem, create_schedule_with_vars
 from tinygrad.schedule.rangeify import get_rangeify_map
 from tinygrad.schedule.kernelize import get_kernelize_map
+
+if TYPE_CHECKING:
+    import numpy as np
 
 # *** all in scope Tensors are here. this gets relevant UOps ***
 
@@ -50,7 +54,7 @@ def _apply_map_to_tensors(applied_map:dict[UOp, UOp], name:str|None=None) -> Non
 
 # **** Tensor helper functions ****
 
-def _fromnp(x: 'np.ndarray') -> UOp:  # type: ignore [name-defined] # noqa: F821
+def _fromnp(x: np.ndarray) -> UOp:
   ret = UOp.new_buffer("NPY", x.size, _from_np_dtype(x.dtype))
   # fake realize
   ret.buffer.allocate(x)
@@ -123,7 +127,7 @@ class Tensor(MathTrait):
   __slots__ = "uop", "requires_grad", "grad"
   training: ClassVar[bool] = False
 
-  def __init__(self, data:ConstType|bytes|list|tuple|UOp|'np.ndarray'|pathlib.Path|None,  # type: ignore [name-defined] # noqa: F821
+  def __init__(self, data:ConstType|bytes|list|tuple|UOp|np.ndarray|pathlib.Path|None,
                device:str|tuple|list|None=None, dtype:DTypeLike|None=None, requires_grad:bool|None=None):
     if dtype is not None: dtype = to_dtype(dtype)
     if device is None and isinstance(data, pathlib.Path): device = f"DISK:{data.resolve()}"  # keep it on the disk if device is None
@@ -353,7 +357,7 @@ class Tensor(MathTrait):
     if self.dtype in (dtypes.half, dtypes.bfloat16, *dtypes.fp8s): return self.cast(dtypes.float32).tolist()
     return self.data().tolist()
 
-  def numpy(self) -> 'np.ndarray':  # type: ignore [name-defined] # noqa: F821
+  def numpy(self) -> np.ndarray:
     """
     Returns the value of this tensor as a `numpy.ndarray`.
 
