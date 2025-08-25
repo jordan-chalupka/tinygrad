@@ -356,7 +356,7 @@ symbolic_flat = symbolic+PatternMatcher([
 
 # ******** we take a small aside to "simplify_valid" to rewrite valids ********
 
-def parse_valid(valid:UOp) -> tuple[UOp, bool, int]:
+def parse_valid(valid:UOp) -> tuple[UOp, bool, int|float]:
   # if it's X <= c, returns X, True, c
   # if it's X >= c, returns X, False, c
 
