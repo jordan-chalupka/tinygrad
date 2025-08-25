@@ -1,9 +1,13 @@
 from __future__ import annotations
-from typing import Final, ClassVar, Callable, Literal
+from typing import Final, ClassVar, Callable, Literal, TYPE_CHECKING
 import math, struct, ctypes, functools
 from dataclasses import dataclass, fields
 from tinygrad.helpers import getenv, prod
 from enum import Enum, auto
+
+if TYPE_CHECKING:
+  import numpy as np
+  import torch
 
 ConstType = float|int|bool
 
@@ -301,16 +305,16 @@ truncate: dict[DType, Callable] = {dtypes.bool: bool,
 def _to_np_dtype(dtype:DType) -> type|None:
   import numpy as np
   return np.dtype(dtype.fmt).type if dtype.fmt is not None else None
-def _from_np_dtype(npdtype:'np.dtype') -> DType: # type: ignore [name-defined] # noqa: F821
+def _from_np_dtype(npdtype: np.dtype) -> DType:
   import numpy as np
   return dtypes.fields()[np.dtype(npdtype).name]
 
 @functools.cache
-def _to_torch_dtype(dtype:DType) -> 'torch.dtype'|None:  # type: ignore [name-defined] # noqa: F821
+def _to_torch_dtype(dtype:DType) -> torch.dtype|None:
   import numpy as np, torch
   # NOTE: torch doesn't expose this mapping with a stable API
   try: return torch.from_numpy(np.array([], dtype=_to_np_dtype(dtype))).dtype
   except TypeError: return None
 @functools.cache
-def _from_torch_dtype(torchdtype:'torch.dtype') -> DType: # type: ignore [name-defined] # noqa: F821
+def _from_torch_dtype(torchdtype: torch.dtype) -> DType:
   return {v:k for k in dtypes.all if (v:=_to_torch_dtype(k)) is not None}[torchdtype]

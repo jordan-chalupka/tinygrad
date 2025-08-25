@@ -2,6 +2,7 @@ import time, math, unittest, functools, platform, warnings
 import numpy as np
 from typing import List, Callable
 import torch
+from typeguard import suppress_type_checks
 from tinygrad.helpers import getenv, IMAGE, DEBUG, CI, Context, TRANSCENDENTAL, AMD_LLVM
 from tinygrad import Tensor, Device, dtypes
 from tinygrad.tensor import _to_np_dtype
@@ -262,7 +263,8 @@ class TestOps(unittest.TestCase):
       for tor_i, ten_i in zip(tor, ten):
         helper_test_op([], lambda: tor_i, lambda: ten_i)
 
-    self.helper_test_exception([], lambda: torch.meshgrid(x, indexing="bad"), lambda: xt.meshgrid(indexing="bad"), expected=RuntimeError)
+    with suppress_type_checks():
+      self.helper_test_exception([], lambda: torch.meshgrid(x, indexing="bad"), lambda: xt.meshgrid(indexing="bad"), expected=RuntimeError)
 
   def test_arange(self):
     helper_test_op([], lambda: torch.arange(10, dtype=torch.int32), lambda: Tensor.arange(10), forward_only=True)
@@ -576,7 +578,8 @@ class TestOps(unittest.TestCase):
         helper_test_op(None, lambda x,y: x.div(y, rounding_mode="trunc"), forward_only=True, vals=[[numerator], [denominator]])
         helper_test_op(None, lambda x,y: x.div(y, rounding_mode="floor"), forward_only=True, vals=[[numerator], [denominator]])
 
-    self.helper_test_exception(None, lambda x,y: x.div(y, rounding_mode="typo"), forward_only=True, vals=[[5], [0]], expected=RuntimeError)
+    with suppress_type_checks():
+      self.helper_test_exception(None, lambda x,y: x.div(y, rounding_mode="typo"), forward_only=True, vals=[[5], [0]], expected=RuntimeError)
 
   def test_div_int(self):
     helper_test_op(None, lambda x,y: x/y, Tensor.div, forward_only=True, vals=[[5, 6, 7],[1, 2, 3]])
@@ -1769,8 +1772,9 @@ class TestOps(unittest.TestCase):
     self.helper_test_exception([(3,3)], lambda x: torch.nn.functional.pad(x, (0,0,0,0,1,0,3,0)), lambda x: x.pad((0,0,0,0,1,0,3,0)),
                                expected=(RuntimeError, ValueError))
     # raise error for mode string typo
-    self.helper_test_exception([(3,3,3)], lambda x: torch.nn.functional.pad(x, (3,0), mode="typo"), lambda x: x.pad((3,0), mode="typo"),
-                               expected=NotImplementedError)
+    with suppress_type_checks():
+      self.helper_test_exception([(3,3,3)], lambda x: torch.nn.functional.pad(x, (3,0), mode="typo"), lambda x: x.pad((3,0), mode="typo"),
+                                expected=NotImplementedError)
     x = Tensor.ones(3,3)
     with self.assertRaises(ValueError): x.pad((None,(0,1),(3,0)))
     with self.assertRaises(ValueError): x.pad(((0,1),))
@@ -1889,11 +1893,14 @@ class TestOps(unittest.TestCase):
   def test_view(self):
     helper_test_op([(4,3,6,6)], lambda x: x.view((12,6,6)))
     helper_test_op([(4,3,6,6)], lambda x: x.view((-1,3,6,6)))
-    helper_test_op([(6,)], lambda x: x.view(2, 3))
-    helper_test_op([(6,1)], lambda x: x.view([2, 3]))
     helper_test_op([(1,6)], lambda x: x.view((3, 2)))
     helper_test_op([(3,2)], lambda x: x.view((2, 3)))
-    helper_test_op([(3,2)], lambda x: x.view(6))
+
+    with suppress_type_checks():
+      helper_test_op([(6,)], lambda x: x.view(2, 3))
+      helper_test_op([(6,1)], lambda x: x.view([2, 3]))
+      helper_test_op([(3,2)], lambda x: x.view(6))
+
 
   def test_flip(self):
     helper_test_op([(4,3,6,6)], lambda x: x.flip((0,)))
@@ -2039,7 +2046,7 @@ class TestOps(unittest.TestCase):
   def test_padded_conv3d(self):
     helper_test_op([(1,4,5,5,5), (4,4,3,3,3)],
       lambda x,w: torch.nn.functional.conv3d(x,w,padding=1),
-      lambda x,w: Tensor.conv2d(x,w,padding=[1,1,1,1,1,1]), grad_rtol=1e-5)
+      lambda x,w: Tensor.conv2d(x,w,padding=(1,1,1,1,1,1)), grad_rtol=1e-5)
 
   def test_simple_conv2d_m4(self):
     helper_test_op([(1,16,18,18), (16,16,3,3)],
@@ -2847,8 +2854,9 @@ class TestOps(unittest.TestCase):
                                                        lambda x,src: x.scatter(dim=1, index=a, src=src), expected=(RuntimeError, AssertionError))
     self.helper_test_exception([(10,3,10), (10,3,10)], lambda x,src: x.scatter(dim=1, index=b, src=src),
                                                        lambda x,src: x.scatter(dim=1, index=a, src=src), expected=(RuntimeError, AssertionError))
-    self.helper_test_exception([(3,4,5), (3,4,5)], lambda x,src: x.scatter(dim=1, index=b, src=src, mode="typo"),
-                                                   lambda x,src: x.scatter(dim=1, index=a, src=src, mode="typo"), expected=TypeError)
+    with suppress_type_checks():
+      self.helper_test_exception([(3,4,5), (3,4,5)], lambda x,src: x.scatter(dim=1, index=b, src=src, mode="typo"),
+                                                    lambda x,src: x.scatter(dim=1, index=a, src=src, mode="typo"), expected=TypeError)
     self.helper_test_exception([(3,4,5), (3,4,5)], lambda x,src: x.half().scatter(dim=1, index=b, src=src),
                                                    lambda x,src: x.half().scatter(dim=1, index=a, src=src), expected=RuntimeError)
 
@@ -2917,10 +2925,11 @@ class TestOps(unittest.TestCase):
     b = torch.randint(3, size=[3,4,5], dtype=torch.int64, requires_grad=False)
     a = Tensor(b.detach().cpu().numpy().astype(np.int32), dtype=dtypes.int32, requires_grad=False)
     # invalid reduce arg
-    self.helper_test_exception([(4,5,6), (4,5,6)],
-      lambda x,src: x.scatter_reduce(dim=0, index=b, src=src, reduce="INVALID"),
-      lambda x,src: x.scatter_reduce(dim=0, index=a, src=src, reduce="INVALID"),
-      RuntimeError)
+    with suppress_type_checks():
+      self.helper_test_exception([(4,5,6), (4,5,6)],
+        lambda x,src: x.scatter_reduce(dim=0, index=b, src=src, reduce="INVALID"),
+        lambda x,src: x.scatter_reduce(dim=0, index=a, src=src, reduce="INVALID"),
+        RuntimeError)
     # dtype mismatch
     self.helper_test_exception([(4,5,6), (4,5,6)],
       lambda x,src: x.half().scatter_reduce(dim=0, index=b, src=src, reduce="sum"),
@@ -2993,8 +3002,9 @@ class TestOps(unittest.TestCase):
     for r in ("mean", "sum", "none"):
       helper_test_op([(32,10), (32,10)], lambda x,y: torch.nn.functional.cross_entropy(x, y, reduction=r),
                                          lambda x,y: x.cross_entropy(y, reduction=r))
-    self.helper_test_exception([(32,10), (32,10)], lambda x,y: torch.nn.functional.cross_entropy(x, y, reduction="typo"),
-                                                   lambda x,y: x.cross_entropy(y, reduction="typo"), expected=ValueError)
+    with suppress_type_checks():
+      self.helper_test_exception([(32,10), (32,10)], lambda x,y: torch.nn.functional.cross_entropy(x, y, reduction="typo"),
+                                                    lambda x,y: x.cross_entropy(y, reduction="typo"), expected=ValueError)
 
   def test_cross_entropy_smoothing(self):
     for ls in (0., 0.3, 0.7, 1.):
@@ -3055,9 +3065,10 @@ class TestOps(unittest.TestCase):
       helper_test_op([(32,10)],
         lambda x: torch.nn.functional.nll_loss(torch.nn.functional.log_softmax(x, dim=1), torch.tensor(target), reduction=r),
         lambda x: x.log_softmax(axis=1).nll_loss(Tensor(target), reduction=r))
-    self.helper_test_exception([(32,10)],
-      lambda x: torch.nn.functional.nll_loss(x, torch.tensor(target), reduction="typo"),
-      lambda x: x.nll_loss(Tensor(target), reduction="typo"), expected=ValueError)
+    with suppress_type_checks():
+      self.helper_test_exception([(32,10)],
+        lambda x: torch.nn.functional.nll_loss(x, torch.tensor(target), reduction="typo"),
+        lambda x: x.nll_loss(Tensor(target), reduction="typo"), expected=ValueError)
 
   def test_nll_loss_weight(self):
     target = np.random.randint(0, 10, (32,), dtype=np.int32).tolist()

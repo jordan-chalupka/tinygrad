@@ -785,7 +785,7 @@ class PatternMatcher:
   @functools.cache  # pylint: disable=method-cache-max-size-none
   def __add__(self, more:PatternMatcher) -> PatternMatcher: return PatternMatcher(self.patterns+more.patterns)
 
-  def rewrite(self, uop:UOp, ctx=None) -> UOp|None:
+  def rewrite(self, uop:UOp, ctx=None) -> UOp|bool|tuple|str|None:
     ler = {u.op for u in uop.src}
     for _,match,early_reject in self.pdict.get(uop.op, []):
       if not early_reject.issubset(ler): continue
@@ -866,7 +866,7 @@ def track_matches(func):
       depth = len(active_rewrites)
       tracked_ctxs[-1].append(ctx:=TrackedGraphRewrite(loc, track_uop(args[0]), [], kwargs.get("name", None), depth, kwargs.get("bottom_up", False)))
       active_rewrites.append(ctx)
-    with cpu_profile(kwargs.get("name", "<unnamed>"), "TINY", display=tracking):
+    with cpu_profile(kwargs.get("name") or "<unnamed>", "TINY", display=tracking):
       ret = func(*args, **kwargs)
     if tracking: active_rewrites.pop()
     return ret
@@ -932,9 +932,9 @@ class RewriteNotReady(Exception): pass
 class RewriteContext:
   def __init__(self, pm, bpm, ctx=None):
     self.pm: PatternMatcher|None = pm
-    self.pm_cache: dict[UOp, UOp|None] = {}
+    self.pm_cache: dict[UOp, UOp|bool|tuple|str|None] = {}
     self.bpm: PatternMatcher|None = bpm
-    self.bpm_cache: dict[UOp, UOp|None] = {}
+    self.bpm_cache: dict[UOp, UOp|bool|tuple|str|None] = {}
     self.ctx = ctx
     self.replace: dict[UOp, UOp] = {}
 
