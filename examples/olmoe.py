@@ -10,9 +10,9 @@ class MixtureFeedForward:
   def __init__(self, num_experts:int, activated_experts:int, dim:int, hidden_dim:int, linear=nn.Linear):
     self.activated_experts = activated_experts
     self.gate = nn.Linear(dim, num_experts, bias=False)
-    self.up_proj = Tensor.zeros(num_experts, hidden_dim, dim, dtype='bfloat16')
-    self.down_proj = Tensor.zeros(num_experts, dim, hidden_dim, dtype='bfloat16')
-    self.gate_proj = Tensor.zeros(num_experts, hidden_dim, dim, dtype='bfloat16')
+    self.gate_proj = Tensor.zeros(num_experts, dim, hidden_dim, dtype='bfloat16')
+    self.up_proj = Tensor.zeros(num_experts, dim, hidden_dim, dtype='bfloat16')
+    self.down_proj = Tensor.zeros(num_experts, hidden_dim, dim, dtype='bfloat16')
   def __call__(self, x:Tensor) -> Tensor:
     assert x.shape[0] == 1, "only BS=1"
     assert x.shape[1] == 1, "only length=1"
@@ -22,9 +22,12 @@ class MixtureFeedForward:
     probs, sel = g.topk(self.activated_experts)
 
     # run MoE
-    x_up_gate = x.dot(self.gate_proj[sel].permute(0,2,1)).silu() * x.dot(self.up_proj[sel].permute(0,2,1))
-    x_down = x_up_gate.dot(self.down_proj[sel].permute(0,2,1))
-    return (x_down * probs.reshape(self.activated_experts, 1, 1)).sum(axis=0)
+    Wg = self.gate_proj[sel].contiguous()
+    Wu = self.up_proj[sel].contiguous()
+    Wd = self.down_proj[sel].contiguous()
+    x_up_gate = x.dot(Wg).silu() * x.dot(Wu)
+    x_down = x_up_gate.dot(Wd)
+    return (x_down * probs[:, None, None]).sum(axis=0)
 
 # model is bf16, 1.3B active, 6.9B total
 # M3 Max is 400 GB/s, so 400/2.6 = ~154 tok/s
