@@ -55,6 +55,13 @@ if __name__ == "__main__":
 
   with Timing("load weights to GPU: "):
     nhf_state = convert_from_huggingface(fetch_weights(), 16, 16, 16)
+    for k, v in list(nhf_state.items()):
+      if k.endswith(".feed_forward.gate_proj") or k.endswith(".feed_forward.up_proj"):
+        # HF: (E, H, D)  -> want (E, D, H)
+        nhf_state[k] = v.transpose(1, 2).contiguous()
+      elif k.endswith(".feed_forward.down_proj"):
+        # HF: (E, D, H)  -> want (E, H, D)
+        nhf_state[k] = v.transpose(1, 2).contiguous()
     # NOTE: i'm not sure this actually needs float32, it may just change the type of things downstream from it. but doesn't match torch w/o this
     for needs_float32 in ['tok_embeddings.weight']: nhf_state[needs_float32] = nhf_state[needs_float32].float()
   print(f"ram used: {GlobalCounters.mem_used/1e9:.2f} GB")
